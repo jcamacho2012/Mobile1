@@ -37,10 +37,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 
+
 @Composable
-fun RegistroPersonas() {
+fun FormTimer(
+    duration: Int,
+    onPause: () -> Unit = {},
+    onReset: () -> Unit = {},
+    onComplete: () -> Unit = {}
+) {
+
     var timeLeft by remember {
-        mutableIntStateOf(10)
+        mutableIntStateOf(duration)
     }
 
     var isPaused by remember {
@@ -48,68 +55,74 @@ fun RegistroPersonas() {
     }
 
     LaunchedEffect(key1 = timeLeft) {
-        while (timeLeft>0 && !isPaused){
+        if (timeLeft == 0) onComplete()
+        while (timeLeft > 0 && !isPaused) {
             delay(1000L)
             timeLeft--
+
         }
     }
 
-    var name by remember {
-        mutableStateOf("")
-    }
-    var age by remember {
-        mutableStateOf("")
-    }
-
-    var names by remember {
-        mutableStateOf(listOf<Person>())
-    }
-    val context = LocalContext.current
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(20.dp)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-       Row(
-           modifier = Modifier.fillMaxWidth(),
-           verticalAlignment = Alignment.CenterVertically,
-           horizontalArrangement = Arrangement.SpaceBetween
-       ){
-           Text(text = "Time Left: ${timeLeft}",
-               modifier = Modifier.padding( 16.dp),
-               fontSize = 20.sp
-           )
-          Column(
-              modifier = Modifier.padding(16.dp),
+        Text(
+            text = "Time Left: ${timeLeft}",
+            modifier = Modifier.padding(16.dp),
+            fontSize = 20.sp
+        )
+        Column(
+            modifier = Modifier.padding(16.dp),
 
-              ){
-              Button(
-                  onClick = {
-                      timeLeft=10
-                      isPaused=false
-                  }) {
-                  Icon(
-                      modifier = Modifier.size(20.dp),
-                      imageVector = Icons.Default.Refresh, contentDescription = null)
-                  Spacer(modifier = Modifier.size(10.dp))
-                  Text(text = "Reload")
-              }
-              Button(
-                  onClick = {
-                      isPaused= true
-                  }) {
-                  Icon(
-                      modifier = Modifier.size(20.dp),
-                      imageVector = Icons.Default.Clear, contentDescription = null)
-                  Spacer(modifier = Modifier.size(10.dp))
-                  Text(text = "Pause")
-              }
-          }
+            ) {
+            Button(
+                onClick = {
+                    onReset()
+                    timeLeft = duration
+                    isPaused = false
+                }) {
+                Icon(
+                    modifier = Modifier.size(20.dp),
+                    imageVector = Icons.Default.Refresh, contentDescription = null
+                )
+                Spacer(modifier = Modifier.size(10.dp))
+                Text(text = "Reload")
+            }
+            Button(
+                onClick = {
+                    isPaused = true
+                    onPause()
+                }) {
+                Icon(
+                    modifier = Modifier.size(20.dp),
+                    imageVector = Icons.Default.Clear, contentDescription = null
+                )
+                Spacer(modifier = Modifier.size(10.dp))
+                Text(text = "Pause")
+            }
+        }
+    }
+}
 
+@Composable
+fun RegistrationForm(
+    addPerson: (Person) -> Unit,
+    isFormEnabled: Boolean
+) {
+    Column {
+        var name by remember {
+            mutableStateOf("")
+        }
 
-       }
+        var age by remember {
+            mutableStateOf("")
+        }
+        val context = LocalContext.current
+
         TextField(value = name,
+            enabled = isFormEnabled,
             modifier = Modifier.fillMaxWidth(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
             placeholder = { Text("Name") },
@@ -119,6 +132,7 @@ fun RegistroPersonas() {
         Spacer(modifier = Modifier.size(20.dp))
 
         TextField(value = age,
+            enabled = isFormEnabled,
             modifier = Modifier.fillMaxWidth(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             placeholder = { Text("Age") },
@@ -128,25 +142,65 @@ fun RegistroPersonas() {
         Spacer(modifier = Modifier.size(20.dp))
         Button(
             modifier = Modifier.fillMaxWidth(),
+            enabled = isFormEnabled,
             onClick = {
                 if (name.isNotBlank() && age.isNotBlank()) {
-                    val persona = Person(name,age.toInt())
-                    names = names + persona
+                    val persona = Person(name, age.toInt())
+                    addPerson(persona)
                     name = ""
-                    age=""
+                    age = ""
                 } else {
-                    Toast.makeText(context, "Name and Age are mandatories", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Name and Age are mandatories", Toast.LENGTH_SHORT)
+                        .show()
                 }
             }) {
             Icon(imageVector = Icons.Default.AddCircle, contentDescription = null)
             Spacer(modifier = Modifier.size(20.dp))
             Text(text = "Register")
         }
+    }
+}
+
+@Composable
+fun RegistroPersonas() {
+    var isFormEnabled by remember {
+        mutableStateOf(true)
+    }
+
+    var duration by remember {
+        mutableIntStateOf(10)
+    }
+
+    var personList by remember {
+        mutableStateOf(listOf<Person>())
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(20.dp)
+    ) {
+        FormTimer(
+            duration = duration,
+            onComplete = {
+                isFormEnabled = false
+            },
+            onReset = {
+                isFormEnabled = true
+                duration = 10
+            }
+        )
+        RegistrationForm(
+            isFormEnabled = isFormEnabled,
+            addPerson = { capturePerson ->
+                personList += capturePerson
+            }
+        )
         Spacer(modifier = Modifier.size(20.dp))
         LazyColumn(
             modifier = Modifier.padding(16.dp)
         ) {
-            items(items = names) { currentName ->
+            items(items = personList) { currentName ->
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
